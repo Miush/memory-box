@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Она была светом</title>
+
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: #050505;
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+            user-select: none;
+            position: fixed;
+        }
+
+        /* ═══ СТАРТОВЫЙ ЭКРАН ═══ */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #050505;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 2.5s ease-in-out;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .start-text {
+            color: #d4c5b0;
+            font-size: clamp(1.4rem, 5vw, 2rem);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(212, 197, 176, 0.2);
+        }
+
+        .start-subtext {
+            color: #5a4b41;
+            font-size: clamp(1rem, 3.5vw, 1.2rem);
+            animation: pulseText 2s infinite alternate;
+        }
+
+        @keyframes pulseText {
+            from { opacity: 0.3; }
+            to { opacity: 1; }
+        }
+
+        /* ═══ СТОЛ ═══ */
+        #table {
+            position: relative;
+            width: 100vw; height: 100vh;
+            height: 100dvh;
+            background-image: url('bg.png');
+            background-size: cover;
+            background-position: center;
+            transition: filter 1.5s ease;
+            overflow: hidden;
+        }
+
+        #darkness {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.95) 100%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease;
+            z-index: 5;
+        }
+
+        /* ═══ ОБЁРТКИ ПРЕДМЕТОВ ═══ */
+        .item-wrapper {
+            position: absolute;
+            cursor: pointer;
+            transition: transform 1.5s ease-in-out, opacity 1s ease, top 1.5s ease, left 1.5s ease;
+            z-index: 10;
+            transform-origin: center center;
+        }
+
+        .item-wrapper:hover {
+            z-index: 15;
+        }
+
+        .item {
+            display: block;
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0px 15px 15px rgba(0,0,0,0.7));
+            animation: breathe 5s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes breathe {
+            0% { transform: scale(1); filter: drop-shadow(0px 10px 10px rgba(0,0,0,0.5)) brightness(0.9); }
+            100% { transform: scale(1.03); filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)) brightness(1.1); }
+        }
+
+        /* ─── ПОЗИЦИИ И ПОВОРОТЫ ─── */
+        #cloth-wrapper { width: 22vw; max-width: 220px; top: 45%; left: 35%; transform: rotate(-15deg); }
+        #feather-wrapper { width: 18vw; max-width: 180px; top: 15%; left: 72%; transform: rotate(35deg); }
+        #phone-wrapper { width: 28vw; max-width: 280px; top: 60%; left: 12%; transform: rotate(15deg); }
+        #goose-wrapper { width: 14vw; max-width: 140px; top: 45%; left: 58%; transform: rotate(-5deg); }
+        #leaf-wrapper { width: 18vw; max-width: 180px; top: 15%; left: 32%; transform: rotate(80deg); }
+        #grass-wrapper { width: 30vw; max-width: 300px; top: 75%; left: 42%; transform: rotate(-25deg); }
+
+        /* ─── ФОКУС (предмет в центре) ─── */
+        .item-wrapper.focused {
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) scale(1.3) rotate(0deg) !important;
+            z-index: 20;
+        }
+
+        .item-wrapper.focused .item {
+            animation: none;
+        }
+
+        .item-wrapper.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* ═══ ТЕКСТ ═══ */
+        #story-text {
+            position: absolute;
+            top: 62%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 650px;
+            color: #d4c5b0;
+            font-size: clamp(1.1rem, 4vw, 1.6rem);
+            text-align: center;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 1s;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+            line-height: 1.4;
+            pointer-events: none;
+            padding: 0 10px;
+        }
+
+        #story-text.visible {
+            opacity: 1;
+        }
+
+        .voice-header {
+            color: #8c6a5d;
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        /* ═══ КНОПКА "ПОЛОЖИТЬ ОБРАТНО" ═══ */
+        #back-btn {
+            position: absolute;
+            bottom: 8%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: transparent;
+            border: none;
+            color: #5a4b41;
+            font-family: 'VT323', monospace;
+            font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+            cursor: pointer;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: 1s;
+            text-transform: lowercase;
+            letter-spacing: 1px;
+            padding: 10px 20px;
+        }
+
+        #back-btn:hover, #back-btn:active {
+            color: #d4c5b0;
+        }
+
+        #back-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ═══ ФИНАЛЬНЫЙ ЭКРАН ═══ */
+        #final-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #050505;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 3s ease-in-out;
+            padding: 30px;
+            text-align: center;
+        }
+
+        #final-screen.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .final-text {
+            font-family: 'Cormorant Garamond', serif;
+            color: #d4c5b0;
+            font-size: clamp(1.6rem, 6vw, 2.4rem);
+            line-height: 1.6;
+            letter-spacing: 1px;
+            text-shadow: 0 0 30px rgba(212, 197, 176, 0.3);
+            max-width: 600px;
+        }
+
+        .final-text .line {
+            display: block;
+            opacity: 0;
+            animation: fadeLine 2s forwards;
+        }
+
+        .final-text .line:nth-child(1) { animation-delay: 0.5s; }
+        .final-text .line:nth-child(2) { animation-delay: 2.5s; }
+        .final-text .line:nth-child(3) { animation-delay: 4.5s; }
+
+        @keyframes fadeLine {
+            to { opacity: 1; }
+        }
+
+        .final-emblem {
+            color: #5a4b41;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            letter-spacing: 4px;
+            margin-top: 50px;
+            opacity: 0;
+            animation: fadeLine 2s forwards;
+            animation-delay: 7s;
+        }
+
+        /* ═══ АДАПТАЦИЯ ═══ */
+        @media (max-height: 700px) {
+            #story-text { top: 58%; }
+        }
+        @media (max-height: 600px) {
+            #story-text { top: 55%; font-size: 1rem; }
+            .voice-header { margin-bottom: 6px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- СТАРТОВЫЙ ЭКРАН -->
+<div id="start-screen" onclick="startExperience()">
+    <div class="start-text">Надень наушники</div>
+    <div class="start-subtext">кликни, чтобы открыть коробку</div>
+</div>
+
+<!-- СТОЛ -->
+<div id="table">
+    <div id="darkness"></div>
+
+    <div class="item-wrapper" id="cloth-wrapper" onclick="takeItem('cloth')">
+        <img src="cloth.png" class="item" alt="">
+    </div>
+    <div class="item-wrapper" id="feather-wrapper" onclick="takeItem('feather')">
+        <img src="feather.png" class="item" alt="">
+    </div>
+    <div class="item-wrapper" id="phone-wrapper" onclick="takeItem('phone')">
+        <img src="phone.png" class="item" alt="">
+    </div>
+    <div class="item-wrapper" id="goose-wrapper" onclick="takeItem('goose')">
+        <img src="goose.png" class="item" alt="">
+    </div>
+    <div class="item-wrapper" id="leaf-wrapper" onclick="takeItem('leaf')">
+        <img src="leaf.png" class="item" alt="">
+    </div>
+    <div class="item-wrapper" id="grass-wrapper" onclick="takeItem('grass')">
+        <img src="grass.png" class="item" alt="">
+    </div>
+
+    <div id="story-text"></div>
+    <button id="back-btn" onclick="putBack()">положить обратно</button>
+</div>
+
+<!-- ФИНАЛЬНЫЙ ЭКРАН -->
+<div id="final-screen">
+    <div class="final-text">
+        <span class="line">Она была светом.</span>
+        <span class="line">И этот свет никуда не делся.</span>
+        <span class="line">Он просто стал тише.</span>
+    </div>
+    <div class="final-emblem">6:59 CAVE ART</div>
+</div>
+
+<script>
+    // ═══ VK BRIDGE ═══
+    try {
+        vkBridge.send('VKWebAppInit');
+    } catch(e) {
+        console.log("VK не найден, работаем в браузере");
+    }
+
+    // ═══ ЭЛЕМЕНТЫ ═══
+    const wrappers = document.querySelectorAll('.item-wrapper');
+    const darkness = document.getElementById('darkness');
+    const storyText = document.getElementById('story-text');
+    const backBtn = document.getElementById('back-btn');
+    const startScreen = document.getElementById('start-screen');
+    const finalScreen = document.getElementById('final-screen');
+
+    let currentItem = null;
+    let typeInterval = null;
+    const viewedItems = new Set();
+
+    // ═══ АУДИО ═══
+    const ambientAudio = new Audio('ambient.mp3');
+    ambientAudio.loop = true;
+    ambientAudio.volume = 0.4;
+
+    // ═══ ПАМЯТЬ ═══
+    const memories = {
+        cloth: {
+            header: "ЭМПАТИЯ, ВОСПРИЯТИЕ",
+            text: "Сцена перевязки. Руки. Гусёнок. Свет сквозь щели сарая. Ткань всё ещё хранит тепло."
+        },
+        feather: {
+            header: "САМОСОЗНАНИЕ, ВОЛЯ",
+            text: "Финал. Пустая комната. Свет. Тишина. Оно могло улететь от любого движения, но осталось здесь."
+        },
+        phone: {
+            header: "ЛОГИКА, ЭМПАТИЯ",
+            text: "Сцена в городе. Вопрос. Молчание. Телефон. Тяжёлая эбонитовая трубка. Провод уходит в темноту."
+        },
+        goose: {
+            header: "ВОЛЯ, САМОСОЗНАНИЕ",
+            text: "Сцена плача. Слеза. Окно. Город. Краска давно сошла. Дерево потемнело от тысяч прикосновений."
+        },
+        leaf: {
+            header: "ВОСПРИЯТИЕ, САМОСОЗНАНИЕ",
+            text: "Сцена тени. Дерево. Трава. Тишина. Последний вечер. Лето кончилось."
+        },
+        grass: {
+            header: "ВОСПРИЯТИЕ, ЭМПАТИЯ",
+            text: "Сцена за сараем. Трава. Тень. Гусёнок. На кончике едва заметные следы зубов."
+        }
+    };
+
+    // ═══ СТАРТ ═══
+    function startExperience() {
+        ambientAudio.play().catch(e => console.log("Не удалось запустить аудио"));
+        startScreen.style.opacity = '0';
+        setTimeout(() => {
+            startScreen.style.pointerEvents = 'none';
+            startScreen.style.display = 'none';
+        }, 2500);
+    }
+
+    // ═══ ВЗЯТЬ ПРЕДМЕТ ═══
+    function takeItem(id) {
+        if (currentItem) return;
+        currentItem = document.getElementById(id + '-wrapper');
+
+        // SFX
+        let sfx = new Audio(id + '_sfx.mp3');
+        sfx.volume = 0.8;
+        sfx.play().catch(e => console.log("Ждём SFX файл"));
+
+        // Затемнение
+        darkness.style.opacity = '1';
+
+        // Скрыть остальные
+        wrappers.forEach(w => {
+            if (w.id !== id + '-wrapper') w.classList.add('hidden');
+        });
+
+        // Фокус
+        currentItem.classList.add('focused');
+
+        // Запомнить, что предмет открыт
+        viewedItems.add(id);
+
+        // Текст
+        setTimeout(() => {
+            const memory = memories[id];
+            storyText.innerHTML = `<div class="voice-header">${memory.header}</div><div id="typing-text"></div>`;
+            storyText.classList.add('visible');
+            typeText(document.getElementById('typing-text'), memory.text, 0);
+        }, 1500);
+    }
+
+    // ═══ ПОБУКВЕННЫЙ ТЕКСТ ═══
+    function typeText(element, text, index) {
+        if (index < text.length) {
+            element.innerHTML += text.charAt(index);
+            typeInterval = setTimeout(() => typeText(element, text, index + 1), 60);
+        } else {
+            backBtn.classList.add('visible');
+        }
+    }
+
+    // ═══ ПОЛОЖИТЬ ОБРАТНО ═══
+    function putBack() {
+        if (!currentItem) return;
+        clearTimeout(typeInterval);
+
+        storyText.classList.remove('visible');
+        backBtn.classList.remove('visible');
+
+        const itemToReturn = currentItem;
+        currentItem = null;
+
+        setTimeout(() => {
+            storyText.innerHTML = '';
+            itemToReturn.classList.remove('focused');
+            darkness.style.opacity = '0';
+
+            wrappers.forEach(w => w.classList.remove('hidden'));
+
+            // Проверка: все ли предметы открыты?
+            if (viewedItems.size === Object.keys(memories).length) {
+                setTimeout(showFinal, 1500);
+            }
+        }, 800);
+    }
+
+    // ═══ ФИНАЛ ═══
+    function showFinal() {
+        finalScreen.classList.add('visible');
+        // Затихание ambient
+        let fadeAudio = setInterval(() => {
+            if (ambientAudio.volume > 0.05) {
+                ambientAudio.volume -= 0.05;
+            } else {
+                ambientAudio.volume = 0;
+                ambientAudio.pause();
+                clearInterval(fadeAudio);
+            }
+        }, 200);
+    }
+
+    // ═══ КЛИК ПО ФОНУ ЗАКРЫВАЕТ ПРЕДМЕТ ═══
+    document.getElementById('table').addEventListener('click', function(e) {
+        if (currentItem && !e.target.closest('.item-wrapper') && !e.target.closest('#back-btn')) {
+            putBack();
+        }
+    });
+</script>
+
+</body>
+</html>
